@@ -33,6 +33,19 @@ namespace QuantConnect.Algorithm.CSharp
         [Parameter("transforms.renko.size")]
         private decimal _renkoSize = 0m;
 
+        // Lightweight ML-style gates (volatility / bias tuning)
+        [Parameter("ml.mode")]
+        private string _mlMode = "off"; // off | vol_gate | bias
+
+        [Parameter("ml.vol_window")]
+        private int _mlVolWindow = 30;
+
+        [Parameter("ml.threshold")]
+        private decimal _mlThreshold = 0.002m;
+
+        [Parameter("ml.bias")]
+        private decimal _mlBias = 0m;
+
         [Parameter("start-date")]
         private string _start = "2013-10-07";
 
@@ -45,6 +58,7 @@ namespace QuantConnect.Algorithm.CSharp
         private RenkoConsolidator _renko;
         private decimal _lastRenkoValue;
         private bool _renkoReady;
+        private StandardDeviation _vol;
 
         public override void Initialize()
         {
@@ -75,6 +89,13 @@ namespace QuantConnect.Algorithm.CSharp
                 _emaFast = EMA(_sym, _fast);
                 _emaSlow = EMA(_sym, _slow);
             }
+
+            // Volatility gate for ML-mode if enabled
+            if (_mlMode != null && _mlMode.ToLowerInvariant() != "off")
+            {
+                int window = Math.Max(5, Math.Min(500, _mlVolWindow));
+                _vol = STD(_sym, window);
+            }
         }
 
         public override void OnData(Slice data)
@@ -101,11 +122,20 @@ namespace QuantConnect.Algorithm.CSharp
         private void TradeOn(ExponentialMovingAverage fast, ExponentialMovingAverage slow)
         {
             if (!fast.IsReady || !slow.IsReady) return;
-            if (fast > slow * 1.001m)
+            // Optional ML gates
+            if (_vol != null && !_vol.IsReady) return;
+            if (_vol != null && _mlMode.Equals("vol_gate", StringComparison.OrdinalIgnoreCase))
+            {
+                // Skip trading when realized volatility exceeds threshold
+                if (_vol.Current.Value > Math.Abs(_mlThreshold)) return;
+            }
+
+            decimal bias = _mlBias;
+            if (fast > slow * (1.001m + bias))
             {
                 SetHoldings(_sym, 1m);
             }
-            else if (fast < slow * 0.999m)
+            else if (fast < slow * (0.999m - bias))
             {
                 Liquidate(_sym);
             }
