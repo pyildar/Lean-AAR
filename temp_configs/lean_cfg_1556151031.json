@@ -1,0 +1,19 @@
+{
+  "algorithm-language": "CSharp",
+  "algorithm-location": "C:\\Users\\Administrator\\source\\repos\\AARendoCoreStrats\\lean_engine\\Algorithm.CSharp\\bin\\Release\\QuantConnect.Algorithm.CSharp.dll",
+  "algorithm-type-name": "QuantConnect.Algorithm.CSharp.BasicTemplateAlgorithm",
+  "api-handler": "QuantConnect.Api.Api",
+  "backtesting-results-destination-folder": "..\\AARendoCore_i\\sinks\\lean_jobs\\results\\bt_cli_real\\2025-11-26T05_17_19Z_bt_cli_real\\bt_cli_real",
+  "data-folder": "C:\\Users\\Administrator\\source\\repos\\AARendoCoreStrats\\lean_engine\\Data",
+  "data-provider": "QuantConnect.Lean.Engine.DataFeeds.DefaultDataProvider",
+  "environment": "backtesting",
+  "factor-file-provider": "QuantConnect.Data.Auxiliary.LocalZipFactorFileProvider",
+  "job-id": "bt_cli_real",
+  "job-queue": "QuantConnect.Queues.JobQueue",
+  "map-file-provider": "QuantConnect.Data.Auxiliary.LocalZipMapFileProvider",
+  "messaging-handler": "QuantConnect.Messaging.Messaging",
+  "parameters": {
+    "example": "value"
+  },
+  "results-destination-folder": "..\\AARendoCore_i\\sinks\\lean_jobs\\results\\bt_cli_real\\2025-11-26T05_17_19Z_bt_cli_real\\bt_cli_real"
+}
