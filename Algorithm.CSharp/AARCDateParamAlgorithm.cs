@@ -59,6 +59,8 @@ namespace QuantConnect.Algorithm.CSharp
         private decimal _lastRenkoValue;
         private bool _renkoReady;
         private StandardDeviation _vol;
+        private decimal _lastPrice;
+        private bool _havePrice;
 
         public override void Initialize()
         {
@@ -100,6 +102,20 @@ namespace QuantConnect.Algorithm.CSharp
 
         public override void OnData(Slice data)
         {
+            // Capture real prices from bar feeds to ensure execution is based on observed ticks/quotes.
+            if (data.Bars != null && data.Bars.ContainsKey(_sym))
+            {
+                var bar = data.Bars[_sym];
+                _lastPrice = bar.Close;
+                _havePrice = true;
+            }
+            else if (data.QuoteBars != null && data.QuoteBars.ContainsKey(_sym))
+            {
+                var qb = data.QuoteBars[_sym];
+                _lastPrice = qb.Close;
+                _havePrice = true;
+            }
+
             if (_renko != null)
             {
                 if (!_renkoReady) return;
@@ -117,11 +133,14 @@ namespace QuantConnect.Algorithm.CSharp
             _emaFast.Update(bar.EndTime, bar.Close);
             _emaSlow.Update(bar.EndTime, bar.Close);
             _renkoReady = _emaFast.IsReady && _emaSlow.IsReady;
+            _lastPrice = bar.Close; // brick still tracks real-ish price progression
+            _havePrice = true;
         }
 
         private void TradeOn(ExponentialMovingAverage fast, ExponentialMovingAverage slow)
         {
             if (!fast.IsReady || !slow.IsReady) return;
+            if (!_havePrice || _lastPrice <= 0m) return;
             // Optional ML gates
             if (_vol != null && !_vol.IsReady) return;
             if (_vol != null && _mlMode.Equals("vol_gate", StringComparison.OrdinalIgnoreCase))
@@ -133,11 +152,21 @@ namespace QuantConnect.Algorithm.CSharp
             decimal bias = _mlBias;
             if (fast > slow * (1.001m + bias))
             {
-                SetHoldings(_sym, 1m);
+                // Size via available cash to avoid synthetic brick fill assumptions
+                var price = _lastPrice;
+                var targetValue = Portfolio.Cash;
+                var qty = price > 0 ? Math.Floor(targetValue / price) : 0;
+                if (qty > 0)
+                {
+                    MarketOrder(_sym, qty);
+                }
             }
             else if (fast < slow * (0.999m - bias))
             {
-                Liquidate(_sym);
+                if (Portfolio[_sym].Invested)
+                {
+                    Liquidate(_sym);
+                }
             }
         }
 
